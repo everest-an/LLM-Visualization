@@ -1,4 +1,4 @@
-﻿import { createMTLNNLayout, DEFAULT_MTLNN_CONFIG, DEMO_MTLNN_CONFIG } from './MtLnnModel';
+﻿import { createMTLNNLayout, DEFAULT_MTLNN_CONFIG, DEMO_MTLNN_CONFIG, mtLnnSpreadState } from './MtLnnModel';
 import { genModelViewMatrices, ICamera, ICameraPos, updateCamera } from "./Camera";
 import { drawAllArrows } from "./components/Arrow";
 import { drawBlockLabels } from "./components/SectionLabels";
@@ -298,6 +298,17 @@ export function runProgram(view: IRenderView, state: IProgramState) {
                 drawModelCard(state, example.layout as any, example.name, example.offset.add(example.modelCardOffset));
             }
             if (example.name === 'MT-LNN') {
+                // Ease the Y-spread multiplier toward its target each frame
+                // and rebuild the layout when it changes meaningfully. This
+                // gives the spread/collapse button (in MtLnnToc) a soft ~300ms
+                // tween for free, without an explicit animation system.
+                const s = mtLnnSpreadState;
+                if (Math.abs(s.current - s.target) > 0.001) {
+                    s.current += (s.target - s.current) * 0.12;
+                    if (Math.abs(s.current - s.target) < 0.005) s.current = s.target;
+                    example.layout = createMTLNNLayout(DEMO_MTLNN_CONFIG, new Vec3()) as any;
+                    state.markDirty();
+                }
                 // ===== microtubule wave animation: pulse highlight up the cylinder + rotate around it =====
                 // Wave travels along y (axial signal propagation) and rotates in z-x (helical lattice rhythm).
                 // Period locked to 5 time-scales × 2.5s per scale = ~12.5s full traversal.

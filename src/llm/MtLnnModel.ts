@@ -156,8 +156,9 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
     let pfWidth = Math.max(2, Math.floor(T / 2));   // chunkier PF cubes (was T/4)
 
     // Vertical spacing multiplier between major sub-layers (1.0 = original).
-    // Bumped to give every sub-layer breathing room so blocks read cleanly.
-    const ySpread = 1.6;
+    // Live value comes from mtLnnSpreadState.current so the spread/collapse
+    // toggle in MtLnnToc can animate this without changing call signatures.
+    const ySpread = mtLnnSpreadState.current;
 
     for (let layerIdx = 0; layerIdx < nLayers; layerIdx++) {
         // ===== Sub-layer 1 :  Microtubule Attention  (pre-norm + residual, multi-head spread along z) =====
@@ -302,6 +303,18 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
     let weightCount = cubes.reduce((acc, c) => acc + (c.t === 'w' ? c.cx * c.cy * c.cz : 0), 0);
     return { shape, cubes, cell, height: y, margin, weightCount } as any;
 }
+
+// Spread/collapse animation state for the MT-LNN layout's Y-axis breathing
+// room between sub-layers. The MT-LNN render loop in Program.ts eases
+// `current` toward `target` each frame and rebuilds the layout if changed.
+// `target` is flipped between SPREAD_COLLAPSED and SPREAD_EXPANDED by the
+// UI button in components/MtLnnToc.tsx.
+export const SPREAD_COLLAPSED = 1.6;
+export const SPREAD_EXPANDED  = 3.2;
+export const mtLnnSpreadState: { current: number; target: number } = {
+    current: SPREAD_COLLAPSED,
+    target:  SPREAD_COLLAPSED,
+};
 
 export function createMTLNNLayout(config: MTLNNConfig, offset: Vec3 = new Vec3(0, 0, 0)): IMTLNNLayout {
     let shape: any = { A: config.dModel / config.nHeads, nBlocks: config.nLayers, nHeads: config.nHeads, dHead: config.dHead,
