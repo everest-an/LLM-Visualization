@@ -12,6 +12,41 @@ import { cameraToMatrixView } from "./Camera";
 import { drawLineRect } from "./components/ModelCard";
 
 // ---------------------------------------------------------------------------
+// Local helper: draw a semi-transparent white background quad behind every
+// piece of text we emit, then draw the text. The background sits in the same
+// model matrix as the text so it stays attached during camera moves. This is
+// the closest equivalent to "renderOrder=10 + rounded box behind label" in
+// this WebGL2 engine — there is no per-object renderOrder, so we rely on the
+// fact that addQuad/writeTextToBuffer issue draws in call order within a
+// frame, with text drawn after (and therefore visually on top of) the bg.
+// ---------------------------------------------------------------------------
+const TEXT_BG_COLOR    = new Vec4(1.0, 1.0, 1.0, 0.85);
+const TEXT_BG_BORDER   = new Vec4(0.0, 0.0, 0.0, 0.10);
+
+function drawTextWithBg(
+    render: IRenderState,
+    text: string,
+    color: Vec4,
+    x: number, y: number,
+    fontSize: number,
+    mtx: Mat4f,
+) {
+    const w     = measureTextWidth(render.modelFontBuf, text, fontSize);
+    const padX  = Math.max(2, fontSize * 0.30);
+    const padY  = Math.max(1, fontSize * 0.18);
+    // Slight negative z so the bg sits *behind* the text plane and never
+    // accidentally hides it after perspective foreshortening.
+    const tl    = new Vec3(x - padX,       y - padY,             -0.05);
+    const br    = new Vec3(x + w + padX,   y + fontSize + padY,  -0.05);
+    addQuad(render.triRender, tl, br, TEXT_BG_COLOR, mtx);
+    // 1-px-equivalent border via four thin line segments (no rounded corners
+    // — engine has no curve primitive). Color = rgba(0,0,0,0.1).
+    const lo: ILineOpts = { color: TEXT_BG_BORDER, mtx, thick: 0.5, n: new Vec3(0, 0, 1) };
+    drawLineRect(render, tl, br, lo);
+    writeTextToBuffer(render.modelFontBuf, text, color, x, y, fontSize, mtx);
+}
+
+// ---------------------------------------------------------------------------
 // Section labels on the LEFT side of the MT-LNN spine, plus simple
 // straight arrows between consecutive spine blocks. Mirrors nano-gpt's
 // drawBlockLabels + drawAllArrows so MT-LNN doesn't look bare.
@@ -127,8 +162,7 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
             const mtx = new Mat4f(); mtx[14] = 0 + offset.z;
             const txtSize = 14;
             const tw = measureTextWidth(render.modelFontBuf, ringLabel, txtSize);
-            writeTextToBuffer(
-                render.modelFontBuf, ringLabel, colMtdl,
+            drawTextWithBg(render, ringLabel, colMtdl,
                 -tw / 2, meanY - txtSize - 6 + offset.y, txtSize, mtx,
             );
 
@@ -136,8 +170,7 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
             ring.forEach((pf, pi) => {
                 const lbl = `P${pi + 1}`;
                 const lblMtx = new Mat4f(); lblMtx[14] = pf.z + pf.dz / 2 + offset.z;
-                writeTextToBuffer(
-                    render.modelFontBuf, lbl, colMtdl.mul(0.8),
+                drawTextWithBg(render, lbl, colMtdl.mul(0.8),
                     pf.x + pf.dx / 2 - 8 + offset.x,
                     pf.y - 12 + offset.y,
                     9, lblMtx,
@@ -163,8 +196,7 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
         tauGroup.forEach((tc, i) => {
             if (i >= tauLabels.length) return;
             const mtx = new Mat4f(); mtx[14] = tc.z + tc.dz / 2 + offset.z;
-            writeTextToBuffer(
-                render.modelFontBuf, tauLabels[i], colMtdl.mul(0.9),
+            drawTextWithBg(render, tauLabels[i], colMtdl.mul(0.9),
                 tc.x + tc.dx + 4 + offset.x,
                 tc.y + tc.dy / 2 - 5 + offset.y,
                 10, mtx,
@@ -178,8 +210,7 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
         const mtx = new Mat4f(); mtx[14] = firstPF.z + offset.z;
         const formula = 'h⁽ᵖ,ˢ⁾_t = α·h⁽ᵖ,ˢ⁾_(t-1) + (1-α)·σ(W_in·x+b),   α = exp(-Δt/τ)';
         const fw = measureTextWidth(render.modelFontBuf, formula, 11);
-        writeTextToBuffer(
-            render.modelFontBuf, formula, colMtdl.mul(0.85),
+        drawTextWithBg(render, formula, colMtdl.mul(0.85),
             -fw / 2, firstPF.y - 32 + offset.y, 11, mtx,
         );
     }
@@ -241,8 +272,7 @@ function labelLeft(
     const midY  = (yTop + yBot) / 2;
 
     const tw = measureTextWidth(render.modelFontBuf, text, fontSize);
-    writeTextToBuffer(
-        render.modelFontBuf, text, color,
+    drawTextWithBg(render, text, color,
         leftX - tw - 2 * pad, midY - fontSize / 2, fontSize, mtx,
     );
 
@@ -272,7 +302,7 @@ function labelRight(
     const mtx = new Mat4f(); mtx[14] = z;
     const x   = block.x + block.dx + offset.x + 6;
     const y   = block.y + block.dy / 2 + offset.y - fontSize / 2;
-    writeTextToBuffer(render.modelFontBuf, text, color, x, y, fontSize, mtx);
+    drawTextWithBg(render, text, color, x, y, fontSize, mtx);
 }
 
 // ---------------------------------------------------------------------------
@@ -315,14 +345,14 @@ export function drawMTLNNModelCard(state: IProgramState, layout: IMTLNNLayout, o
     const titleFs = 7;
     const title = "Microtubule Liquid Neural Network (MT-LNN)";
     const titleW = measureTextWidth(render.modelFontBuf, title, titleFs);
-    writeTextToBuffer(render.modelFontBuf, title, titleColor, midX - titleW / 2, y, titleFs, mtx);
+    drawTextWithBg(render, title, titleColor, midX - titleW / 2, y, titleFs, mtx);
     y += titleFs * 1.2;
 
     // ---- Subtitle (paper line) ----
     const subFs = 2.8;
     const sub = "Brain-inspired continuous-time LM | Orch-OR + Liquid Time-Constant";
     const subW = measureTextWidth(render.modelFontBuf, sub, subFs);
-    writeTextToBuffer(render.modelFontBuf, sub, sectionColor, midX - subW / 2, y, subFs, mtx);
+    drawTextWithBg(render, sub, sectionColor, midX - subW / 2, y, subFs, mtx);
     y += subFs * 1.6;
 
     // ---- Key dims (two columns) ----
@@ -366,7 +396,7 @@ export function drawMTLNNModelCard(state: IProgramState, layout: IMTLNNLayout, o
         ["Viz fork: github.com/everest-an/LLM-Visualization (from bbycroft/llm-viz)", linkColor],
     ];
     for (const [text, color] of srcs) {
-        writeTextToBuffer(render.modelFontBuf, text, color, tl.x + 3, y, srcFs, mtx);
+        drawTextWithBg(render, text, color, tl.x + 3, y, srcFs, mtx);
         y += srcFs * 1.3;
     }
 }
@@ -377,9 +407,9 @@ function writeRow(
     label: string, value: string,
     labelColor: Vec4, valueColor: Vec4, fs: number,
 ) {
-    writeTextToBuffer(render.modelFontBuf, label + " =", labelColor, x, y, fs, mtx);
+    drawTextWithBg(render, label + " =", labelColor, x, y, fs, mtx);
     const lw = measureTextWidth(render.modelFontBuf, label + " =", fs);
-    writeTextToBuffer(render.modelFontBuf, " " + value, valueColor, x + lw, y, fs, mtx);
+    drawTextWithBg(render, " " + value, valueColor, x + lw, y, fs, mtx);
 }
 
 function numComma(a: number) {
