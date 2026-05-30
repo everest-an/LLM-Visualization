@@ -48,7 +48,7 @@ export function walkthroughMTLNN(args: IWalkthroughArgs) {
     }
 
     if (wt.phase === Phase.MTLNN_Intro) {
-        setInitialCamera(state, new Vec3(-119753, 0, -552), new Vec3(285, 25, 7.5));
+        setInitialCamera(state, new Vec3(-119753, 0, -780), new Vec3(287, 22, 14.0));
 
         commentary(wt, null, 0)`欢迎来到 _多时间尺度液态神经网络_ (Multi-Timescale Liquid Neural Network, MT-LNN) 的可视化解析。
 

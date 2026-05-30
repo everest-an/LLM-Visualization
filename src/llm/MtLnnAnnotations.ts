@@ -94,6 +94,91 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
         labelLeft(render, 'LM Head → Logits  (weight-tied to E_tok)', lmHead, logits, colIO, 18, offset);
     }
 
+    // ---- Microtubule ring annotations (one per block) ----
+    // The protofilament cubes share the same name across blocks (P1..P13), so
+    // group them by y-coordinate to recover the per-block ring.
+    const protoCubes = cubes.filter(c => /^P\d+ W_in$/.test(c.name));
+    if (protoCubes.length > 0) {
+        // Cluster by y (cubes within nProto items sharing the same y form one ring).
+        const rings: IBlkDef[][] = [];
+        const sortedByY = [...protoCubes].sort((a, b) => a.y - b.y);
+        let currentRing: IBlkDef[] = [];
+        let lastY: number | null = null;
+        for (const c of sortedByY) {
+            if (lastY === null || Math.abs(c.y - lastY) < 1.0) {
+                currentRing.push(c);
+            } else {
+                rings.push(currentRing);
+                currentRing = [c];
+            }
+            lastY = c.y;
+        }
+        if (currentRing.length > 0) rings.push(currentRing);
+
+        rings.forEach((ring, blockIdx) => {
+            // Big floating label above the ring center (spine z ≈ 0)
+            const meanY = ring.reduce((s, c) => s + c.y, 0) / ring.length;
+            const ringLabel = `Microtubule (Block ${blockIdx + 1})  ·  ${nProto} protofilaments × ${nTau} τ-scales  ·  closed-form LTC`;
+            const mtx = new Mat4f(); mtx[14] = 0 + offset.z;
+            const txtSize = 14;
+            const tw = measureTextWidth(render.modelFontBuf, ringLabel, txtSize);
+            writeTextToBuffer(
+                render.modelFontBuf, ringLabel, colMtdl,
+                -tw / 2, meanY - txtSize - 6 + offset.y, txtSize, mtx,
+            );
+
+            // Per-protofilament index labels at every PF position (around the ring)
+            ring.forEach((pf, pi) => {
+                const lbl = `P${pi + 1}`;
+                const lblMtx = new Mat4f(); lblMtx[14] = pf.z + pf.dz / 2 + offset.z;
+                writeTextToBuffer(
+                    render.modelFontBuf, lbl, colMtdl.mul(0.8),
+                    pf.x + pf.dx / 2 - 8 + offset.x,
+                    pf.y - 12 + offset.y,
+                    9, lblMtx,
+                );
+            });
+        });
+    }
+
+    // ---- τ-scale labels for ONE representative protofilament per block (P1) ----
+    // The tau cubes are named `P1 tau0` .. `P1 tau4` per block. Annotate them
+    // with the time-constant role so the multi-timescale liquid nature is obvious.
+    const tauLabels = ['τ₀ ≈ 0.01  fast', 'τ₁', 'τ₂', 'τ₃', 'τ₄ ≈ 10.0  slow'];
+    const tauCubesP1 = cubes.filter(c => /^P1 tau\d+$/.test(c.name));
+    // Group by y-block (one set per block)
+    const tauByBlock = new Map<number, IBlkDef[]>();
+    for (const t of tauCubesP1) {
+        const yKey = Math.round(t.y / 50) * 50;
+        if (!tauByBlock.has(yKey)) tauByBlock.set(yKey, []);
+        tauByBlock.get(yKey)!.push(t);
+    }
+    for (const tauGroup of Array.from(tauByBlock.values())) {
+        tauGroup.sort((a, b) => a.y - b.y);
+        tauGroup.forEach((tc, i) => {
+            if (i >= tauLabels.length) return;
+            const mtx = new Mat4f(); mtx[14] = tc.z + tc.dz / 2 + offset.z;
+            writeTextToBuffer(
+                render.modelFontBuf, tauLabels[i], colMtdl.mul(0.9),
+                tc.x + tc.dx + 4 + offset.x,
+                tc.y + tc.dy / 2 - 5 + offset.y,
+                10, mtx,
+            );
+        });
+    }
+
+    // ---- LTC formula floating tag at the first microtubule ring ----
+    if (protoCubes.length > 0) {
+        const firstPF = protoCubes.reduce((m, c) => (c.y < m.y ? c : m), protoCubes[0]);
+        const mtx = new Mat4f(); mtx[14] = firstPF.z + offset.z;
+        const formula = 'h⁽ᵖ,ˢ⁾_t = α·h⁽ᵖ,ˢ⁾_(t-1) + (1-α)·σ(W_in·x+b),   α = exp(-Δt/τ)';
+        const fw = measureTextWidth(render.modelFontBuf, formula, 11);
+        writeTextToBuffer(
+            render.modelFontBuf, formula, colMtdl.mul(0.85),
+            -fw / 2, firstPF.y - 32 + offset.y, 11, mtx,
+        );
+    }
+
     // ---- Per-block inline tags on the RIGHT side ----
     const tag = (block: IBlkDef | undefined, txt: string, col: Vec4 = baseColor, sz = 10) => {
         if (block) labelRight(render, txt, block, col, sz, offset);

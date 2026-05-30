@@ -173,7 +173,7 @@ export function initProgramState(canvasEl: HTMLCanvasElement, fontAtlasData: IFo
             offset: delta.mul(-12),
             modelCardOffset: new Vec3(),
             blockRender: initBlockRender(render?.ctx ?? null),
-            camera: makeCamera(new Vec3(-119753, 0, -552), new Vec3(285, 25, 7.5)),
+            camera: makeCamera(new Vec3(-119753, 0, -780), new Vec3(287, 22, 14.0)),
         }, {
             name: 'GPT-2 (small)',
             enabled: true,
