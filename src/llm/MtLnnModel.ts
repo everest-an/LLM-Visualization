@@ -300,6 +300,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
     cubes.push(m({ t: 'i', cx: T, cz: B, cy: vocabSize, y: y, xL: rightX, zM: 0, dimX: DimStyle.T, dimY: DimStyle.n_vocab, name: 'Logits' }));
 
     cubes.forEach((cube, idx) => { cube.idx = idx; });
+
     let weightCount = cubes.reduce((acc, c) => acc + (c.t === 'w' ? c.cx * c.cy * c.cz : 0), 0);
     return { shape, cubes, cell, height: y, margin, weightCount } as any;
 }
@@ -312,8 +313,8 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
 export const SPREAD_COLLAPSED = 1.6;
 export const SPREAD_EXPANDED  = 3.2;
 export const mtLnnSpreadState: { current: number; target: number } = {
-    current: SPREAD_COLLAPSED,
-    target:  SPREAD_COLLAPSED,
+    current: SPREAD_EXPANDED,
+    target:  SPREAD_EXPANDED,
 };
 
 export function createMTLNNLayout(config: MTLNNConfig, offset: Vec3 = new Vec3(0, 0, 0)): IMTLNNLayout {
