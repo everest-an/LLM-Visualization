@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Phase } from '../walkthrough/Walkthrough';
+import { Phase } from '../walkthrough/PhaseEnum';
 import { jumpToPhase } from '../Commentary';
 import { useProgramState } from '../Sidebar';
 import { mtLnnSpreadState, SPREAD_COLLAPSED, SPREAD_EXPANDED } from '../MtLnnModel';
