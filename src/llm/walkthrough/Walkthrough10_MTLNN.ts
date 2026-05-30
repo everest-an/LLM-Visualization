@@ -237,10 +237,12 @@ MT-DL 是 position-free 的递推核 (仅靠 τ 与隐状态时序传递信息)�
 
     if (wt.phase === Phase.MTLNN_Wm) {
         setInitialCamera(state, new Vec3(-119753, 0, -560), new Vec3(290, 14, 4));
-        let wmCubes = layout.cubes.filter(c => c.name.includes("WM"));
+        let wmCubes = layout.cubes.filter(c =>
+            c.name.includes("Coherence") || c.name.includes("h_prev"));
+        if (wmCubes.length === 0) wmCubes = [layout.cubes[0]]; // safety
         if (wmCubes.length > 0) wt.dimHighlightBlocks = wmCubes;
 
-        let wmRef = c_blockRef('O(1) 工作记忆 (Orch-OR Working Memory)', wmCubes, DimStyle.Token);
+        let wmRef = c_blockRef('O(1) 工作记忆 (h_prev + Global Coherence/Orch-OR)', wmCubes, DimStyle.Token);
 
         commentary(wt, null, 0)`${wmRef} —— MT-LNN 最反直觉的一块。
 

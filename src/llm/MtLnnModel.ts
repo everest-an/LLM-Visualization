@@ -148,17 +148,35 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
     let protoRadius = Math.max(T, C) * cell * 2.5;
 
     for (let layerIdx = 0; layerIdx < nLayers; layerIdx++) {
-        // ===== Sub-layer 1 :  Microtubule Attention  (pre-norm + residual) =====
+        // ===== Sub-layer 1 :  Microtubule Attention  (pre-norm + residual, multi-head spread along z) =====
         cubes.push(m({ t: 'w', cx: C, cz: 1, cy: C, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn LN W' }));
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn LN' }));
         y += C * cell + margin;
 
-        // QKV combined projection
-        cubes.push(m({ t: 'w', cx: C, cz: 1, cy: C * 3, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn QKV W' }));
-        // attention matrix (T x T) — drawn as a flat square
-        cubes.push(m({ t: 'i', cx: T, cz: B, cy: T, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.T, name: 'L' + (layerIdx + 1) + ' Self-Attn', special: BlkSpecial.Attention }));
-        y += Math.max(C, T) * cell + margin;
-        // output projection
+        // multi-head fan: spread each head along z (same pattern as nano-gpt)
+        const nHeads = (shape as any).nHeads ?? 1;
+        const A = (shape as any).dHead ?? Math.max(1, Math.floor(C / Math.max(1, nHeads)));
+        const headWidth = 3 * B * cell + margin * 0.6 + (C * cell) / 16;
+        const attnQkvY = y;
+        const attnMatrixY = attnQkvY + A * cell + margin;
+        const headOutY   = attnMatrixY + T * cell + margin;
+        for (let h = 0; h < nHeads; h++) {
+            const headZ = headWidth * h - (nHeads - 1) * headWidth / 2;
+            // Q, K, V weights (each [C × A])
+            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX - h * (C * cell + margin) * 0.0, zM: headZ - B * cell - margin / 3, dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q W`, small: true }));
+            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX,                            zM: headZ,                              dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K W`, small: true }));
+            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX,                            zM: headZ + B * cell + margin / 3,      dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V W`, small: true }));
+            // Q, K, V vectors (each [T × A])
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ - B * cell - margin / 3, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q vec`, small: true }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ,                          dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K vec`, small: true }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ + B * cell + margin / 3,  dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V vec`, small: true }));
+            // attention matrix [T × T] per head
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: T, y: attnMatrixY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.T, name: `L${layerIdx + 1} H${h + 1} Attn`, special: BlkSpecial.Attention, small: true }));
+            // per-head value-out (output vectors [T × A])
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: headOutY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Out vec`, small: true }));
+        }
+        y = headOutY + A * cell + margin;
+        // output projection (concat-heads → C)
         cubes.push(m({ t: 'w', cx: C, cz: 1, cy: C, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn Out W' }));
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn Residual' }));
         y += C * cell + margin * 2;
@@ -274,7 +292,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
 
 export function createMTLNNLayout(config: MTLNNConfig, offset: Vec3 = new Vec3(0, 0, 0)): IMTLNNLayout {
     let shape: any = { A: config.dModel / config.nHeads, nBlocks: config.nLayers, nHeads: config.nHeads, dHead: config.dHead,
-        B: 1,
+        B: 4,
         T: config.maxSeqLen,
         C: config.dModel,
         vocabSize: config.vocabSize,
