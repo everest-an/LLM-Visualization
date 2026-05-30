@@ -199,7 +199,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
 
             cubes.push(m({
                 t: 'w', cx: C, cz: 1, cy: dProto * nTimeScales, y: protoStartY,
-                xR: protoX - (Math.max(1, Math.floor(T / 4)) * cell) / 2 - margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_in', small: true
+                xR: protoX - (Math.max(1, Math.floor(T / 4)) * cell) / 2 - margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_in'
             }));
 
             let endTimeScaleY = protoStartY;
@@ -210,28 +210,28 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
                 cubes.push(m({
                     t: 'i', cx: Math.max(1, Math.floor(T / 4)), cz: B, cy: dProto, y: scaleY,
                     xM: protoX, zM: protoZ, dimX: DimStyle.T, dimY: DimStyle.C,
-                    name: 'P' + (protoIdx + 1) + ' tau' + scaleIdx, small: true
+                    name: 'P' + (protoIdx + 1) + ' tau' + scaleIdx
                 }));
                 
                 cubes.push(m({
                     t: 'w', cx: Math.max(1, Math.floor(T / 4)), cz: 1, cy: dProto, y: scaleY,
-                    xM: protoX, zM: protoZ - B * cell - margin / 2, dimX: DimStyle.C, dimY: DimStyle.C, name: 'ODE W', small: true
+                    xM: protoX, zM: protoZ - B * cell - margin / 2, dimX: DimStyle.C, dimY: DimStyle.C, name: 'ODE W'
                 }));
             }
             
             let combY = endTimeScaleY + margin;
             cubes.push(m({
                  t: 'i', cx: Math.max(1, Math.floor(T / 4)), cz: B, cy: dProto, y: combY,
-                 xM: protoX, zM: protoZ, dimX: DimStyle.T, dimY: DimStyle.C, name: 'Kappa Gate', special: BlkSpecial.Attention, small: true
+                 xM: protoX, zM: protoZ, dimX: DimStyle.T, dimY: DimStyle.C, name: 'Kappa Gate', special: BlkSpecial.Attention
             }));
             cubes.push(m({
                  t: 'w', cx: dProto, cz: 1, cy: dProto, y: combY,
-                 xL: protoX + (Math.max(1, Math.floor(T / 4)) * cell) / 2 + margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'MAP Gate (MLP)', small: true
+                 xL: protoX + (Math.max(1, Math.floor(T / 4)) * cell) / 2 + margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'MAP Gate (MLP)'
             }));
 
             cubes.push(m({
                 t: 'w', cx: dProto * nTimeScales, cz: 1, cy: C, y: protoStartY,
-                xL: protoX + (Math.max(1, Math.floor(T / 4)) * cell) / 2 + margin * 2 + dProto * cell, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_out', small: true
+                xL: protoX + (Math.max(1, Math.floor(T / 4)) * cell) / 2 + margin * 2 + dProto * cell, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_out'
             }));
         }
 
@@ -260,7 +260,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
             t: 'i', cx: Math.max(1, Math.floor(T / 4)), cz: B, cy: Math.floor(C / 4),
             y: y, xR: leftX, zM: 0,
             dimX: DimStyle.T, dimY: DimStyle.C,
-            name: 'L' + (layerIdx + 1) + ' h_prev (recurrent)', small: true,
+            name: 'L' + (layerIdx + 1) + ' h_prev (recurrent)',
         }));
     }
 

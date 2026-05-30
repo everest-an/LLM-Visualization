@@ -294,6 +294,34 @@ export function runProgram(view: IRenderView, state: IProgramState) {
         if (example.enabled && example.layout) {
             drawModelCard(state, example.layout as any, example.name, example.offset.add(example.modelCardOffset));
             if (example.name === 'MT-LNN') {
+                // ===== microtubule wave animation: pulse highlight up the cylinder + rotate around it =====
+                // Wave travels along y (axial signal propagation) and rotates in z-x (helical lattice rhythm).
+                // Period locked to 5 time-scales × 2.5s per scale = ~12.5s full traversal.
+                const tSec = view.time * 0.001;
+                const axialSpeed = 0.35;         // scales per second going up
+                const helixSpeed = 0.45;         // PF indices per second going around
+                const pulseWidth = 1.2;          // half-width of the bright band, in scale-units
+                const nPF = 13;
+                for (let cube of (example.layout as any).cubes as IBlkDef[]) {
+                    // match per-protofilament tau cubes:  "P{i} tau{s}"  (1..13, 0..4)
+                    const m = /^P(\d+) tau(\d+)$/.exec(cube.name);
+                    if (m) {
+                        const pIdx = parseInt(m[1], 10) - 1;
+                        const sIdx = parseInt(m[2], 10);
+                        const wave = tSec * axialSpeed - sIdx;
+                        const helix = tSec * helixSpeed - pIdx + (sIdx * nPF / 5);
+                        const axialDist = Math.abs(((wave % 5) + 5) % 5 - 2.5) - 1.5;
+                        const helixDist = Math.abs(((helix % nPF) + nPF) % nPF - nPF / 2) - nPF / 4;
+                        const d = Math.max(axialDist, helixDist);
+                        cube.highlight = Math.max(0, 1 - Math.abs(d) / pulseWidth) * 0.85;
+                    } else if (/^P\d+ Kappa Gate$/.exec(cube.name)) {
+                        // global heartbeat on Kappa Gate (Orch-OR collapse cadence)
+                        cube.highlight = 0.5 + 0.5 * Math.sin(tSec * 2.0);
+                    } else if (/h_prev/.exec(cube.name) || /Coherence/.exec(cube.name)) {
+                        // slow breathing on recurrent state + global coherence layer
+                        cube.highlight = 0.3 + 0.4 * Math.sin(tSec * 0.6);
+                    }
+                }
                 drawMTLNNAnnotations(state.render, example.layout as unknown as IMTLNNLayout, example.offset);
             }
         }
