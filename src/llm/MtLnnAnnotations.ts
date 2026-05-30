@@ -1,10 +1,15 @@
 import { IBlkDef } from "./GptModelLayout";
 import { IMTLNNLayout } from "./MtLnnModel";
-import { addLine } from "./render/lineRender";
+import { addLine, ILineOpts, makeLineOpts } from "./render/lineRender";
 import { measureTextWidth, writeTextToBuffer } from "./render/fontRender";
 import { IRenderState } from "./render/modelRender";
+import { addQuad } from "./render/triRender";
 import { Mat4f } from "@/src/utils/matrix";
 import { Vec3, Vec4 } from "@/src/utils/vector";
+import { clamp } from "@/src/utils/data";
+import { IProgramState } from "./Program";
+import { cameraToMatrixView } from "./Camera";
+import { drawLineRect } from "./components/ModelCard";
 
 // ---------------------------------------------------------------------------
 // Section labels on the LEFT side of the MT-LNN spine, plus simple
@@ -268,6 +273,123 @@ function labelRight(
     const x   = block.x + block.dx + offset.x + 6;
     const y   = block.y + block.dy / 2 + offset.y - fontSize / 2;
     writeTextToBuffer(render.modelFontBuf, text, color, x, y, fontSize, mtx);
+}
+
+// ---------------------------------------------------------------------------
+// MT-LNN model card — sits to the left of the model, shows title, key dims,
+// param count, and source attribution (repo / paper / biological citations).
+// Mimics nano-gpt's drawModelCard but tailored for MT-LNN's extra structure.
+// ---------------------------------------------------------------------------
+export function drawMTLNNModelCard(state: IProgramState, layout: IMTLNNLayout, offset: Vec3) {
+    const { render } = state;
+    const { camPos } = cameraToMatrixView(state.camera);
+    const dist = camPos.dist(new Vec3(0, 0, -30).add(offset));
+    const scale = clamp(dist / 500.0, 1.0, 800.0);
+
+    const shape: any = (layout as any).shape ?? {};
+    const weightCount: number = (layout as any).weightCount ?? 0;
+
+    const pinY = 5;
+    const mtx = Mat4f.fromScaleTranslation(new Vec3(scale, scale, scale), new Vec3(0, pinY, 0).add(offset))
+        .mul(Mat4f.fromTranslation(new Vec3(0, -pinY, 0)));
+
+    const thick = 1.0 / 10.0 * scale;
+    const borderColor = Vec4.fromHexColor("#3b3b66", 0.85);
+    const backgroundColor = Vec4.fromHexColor("#dbeafe", 0.55);
+    const titleColor = Vec4.fromHexColor("#11224a", 1.0);
+    const labelColor = Vec4.fromHexColor("#334155", 1.0);
+    const linkColor  = Vec4.fromHexColor("#1d4ed8", 1.0);
+    const sectionColor = Vec4.fromHexColor("#6b6b8e", 1.0);
+    const n = new Vec3(0, 0, 1);
+    const lineOpts: ILineOpts = { color: borderColor, mtx, thick, n };
+
+    const tl = new Vec3(-58, -43, 0);
+    const br = new Vec3( 58,   5, 0);
+    drawLineRect(render, tl, br, lineOpts);
+    addQuad(render.triRender, new Vec3(tl.x, tl.y, -0.1), new Vec3(br.x, br.y, -0.1), backgroundColor, mtx);
+
+    const midX = (tl.x + br.x) / 2;
+    let y = tl.y + 1.5;
+
+    // ---- Title ----
+    const titleFs = 7;
+    const title = "Microtubule Liquid Neural Network (MT-LNN)";
+    const titleW = measureTextWidth(render.modelFontBuf, title, titleFs);
+    writeTextToBuffer(render.modelFontBuf, title, titleColor, midX - titleW / 2, y, titleFs, mtx);
+    y += titleFs * 1.2;
+
+    // ---- Subtitle (paper line) ----
+    const subFs = 2.8;
+    const sub = "Brain-inspired continuous-time LM | Orch-OR + Liquid Time-Constant";
+    const subW = measureTextWidth(render.modelFontBuf, sub, subFs);
+    writeTextToBuffer(render.modelFontBuf, sub, sectionColor, midX - subW / 2, y, subFs, mtx);
+    y += subFs * 1.6;
+
+    // ---- Key dims (two columns) ----
+    const rowFs = 3;
+    const rowH  = rowFs * 1.4;
+    const colLeftX  = tl.x + 3;
+    const colRightX = midX + 3;
+
+    const nParams = weightCount > 0 ? numComma(weightCount) : "n/a";
+    const left: [string, string][] = [
+        ["n_params", nParams],
+        ["n_layers (L)", String(shape.nBlocks ?? shape.nLayers ?? "?")],
+        ["d_model (C)", String(shape.C ?? shape.dModel ?? "?")],
+        ["seq_len (T)", String(shape.T ?? shape.maxSeqLen ?? "?")],
+    ];
+    const right: [string, string][] = [
+        ["n_protofilaments", String(shape.nProtofilaments ?? 13)],
+        ["n_timescales (tau)", String(shape.nTimeScales ?? 5)],
+        ["n_heads (Attn)", String(shape.nHeads ?? "?")],
+        ["d_head (A)", String(shape.A ?? shape.dHead ?? "?")],
+    ];
+    for (let i = 0; i < left.length; i++) {
+        writeRow(render, mtx, colLeftX,  y + i * rowH, left[i][0],  left[i][1],  labelColor, titleColor, rowFs);
+        writeRow(render, mtx, colRightX, y + i * rowH, right[i][0], right[i][1], labelColor, titleColor, rowFs);
+    }
+    y += left.length * rowH + 2;
+
+    // ---- Divider ----
+    addLine(render.lineRender, thick * 0.6, sectionColor,
+        new Vec3(tl.x + 2, y, 0).mulAdd(new Vec3(0, 0, 1), 0).add(new Vec3()),
+        new Vec3(br.x - 2, y, 0));
+    // (line ignored if perf issues — kept simple)
+    y += 1.5;
+
+    // ---- Source / attribution ----
+    const srcFs = 2.6;
+    const srcs: [string, Vec4][] = [
+        ["Source: github.com/everest-an/M1  |  mt_lnn/model.py", linkColor],
+        ["Spec: ARCHITECTURE.md  |  MT_LNN_ARCHITECTURE_VISUAL.md", labelColor],
+        ["Bio: Hameroff & Penrose (1996) Orch-OR  |  Hasani et al. (2021) LTC", sectionColor],
+        ["Viz fork: github.com/everest-an/LLM-Visualization (from bbycroft/llm-viz)", linkColor],
+    ];
+    for (const [text, color] of srcs) {
+        writeTextToBuffer(render.modelFontBuf, text, color, tl.x + 3, y, srcFs, mtx);
+        y += srcFs * 1.3;
+    }
+}
+
+function writeRow(
+    render: IRenderState, mtx: Mat4f,
+    x: number, y: number,
+    label: string, value: string,
+    labelColor: Vec4, valueColor: Vec4, fs: number,
+) {
+    writeTextToBuffer(render.modelFontBuf, label + " =", labelColor, x, y, fs, mtx);
+    const lw = measureTextWidth(render.modelFontBuf, label + " =", fs);
+    writeTextToBuffer(render.modelFontBuf, " " + value, valueColor, x + lw, y, fs, mtx);
+}
+
+function numComma(a: number) {
+    const s = a.toString();
+    let out = "";
+    for (let i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 === 0) out += ",";
+        out += s[i];
+    }
+    return out;
 }
 
 // Simple downward arrow from bottom-center of `src` to top-center of `dest`.

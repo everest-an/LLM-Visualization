@@ -42,8 +42,3 @@ styles/dist.css
 
 *.wat
 src/cpu/tests/*_.s
-node_modules/
-.next/
-.turbo/
-*.log
-.DS_Store

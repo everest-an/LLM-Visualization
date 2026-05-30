@@ -24,7 +24,7 @@ import { IBlockRender, initBlockRender } from "./render/blockRender";
 import { ILayout } from "../utils/layout";
 import { DimStyle } from "./walkthrough/WalkthroughTools";
 import { Subscriptions } from "../utils/hooks";
-import { drawMTLNNAnnotations } from "./MtLnnAnnotations";
+import { drawMTLNNAnnotations, drawMTLNNModelCard } from "./MtLnnAnnotations";
 import { IMTLNNLayout } from "./MtLnnModel";
 
 export interface IProgramState {
@@ -173,7 +173,7 @@ export function initProgramState(canvasEl: HTMLCanvasElement, fontAtlasData: IFo
             offset: delta.mul(-12),
             modelCardOffset: new Vec3(),
             blockRender: initBlockRender(render?.ctx ?? null),
-            camera: makeCamera(new Vec3(-119753, 0, -540), new Vec3(235, 28, 8.0)),
+            camera: makeCamera(new Vec3(-119753, 0, -620), new Vec3(235, 26, 12.0)),
         }, {
             name: 'GPT-2 (small)',
             enabled: true,
@@ -292,7 +292,11 @@ export function runProgram(view: IRenderView, state: IProgramState) {
 
     for (let example of state.examples) {
         if (example.enabled && example.layout) {
-            drawModelCard(state, example.layout as any, example.name, example.offset.add(example.modelCardOffset));
+            if (example.name === 'MT-LNN') {
+                drawMTLNNModelCard(state, example.layout as unknown as IMTLNNLayout, example.offset.add(example.modelCardOffset));
+            } else {
+                drawModelCard(state, example.layout as any, example.name, example.offset.add(example.modelCardOffset));
+            }
             if (example.name === 'MT-LNN') {
                 // ===== microtubule wave animation: pulse highlight up the cylinder + rotate around it =====
                 // Wave travels along y (axial signal propagation) and rotates in z-x (helical lattice rhythm).
