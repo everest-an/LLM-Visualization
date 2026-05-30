@@ -145,13 +145,19 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
     cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'Embed' }));
     y += C * cell + margin * 2;
 
-    // Microtubule cylinder geometry �� pick radius so the 13 protofilaments
-    // visually form a wall (adjacent PFs nearly touch in the tangential direction).
-    // PF lateral footprint �� B*cell (each cube is B-cells deep, which sits tangent
-    // to the cylinder), so circumference 2��R �� nPF * B*cell * fillFactor.
+    // Microtubule cylinder geometry — we render only a FRONT-FACING ARC of the
+    // cylinder (instead of full 360°) so the back-facing PFs no longer occlude
+    // the front ones at the default camera. The arc opens toward the camera.
     let pfTangential = B * cell + margin / 4;
-    let protoRadius = nProtofilaments * pfTangential / (2 * Math.PI) * 1.15;
+    let arcSpan      = Math.PI * 1.15;                              // ~207° (frontal C-shape)
+    let arcCenter    = -Math.PI * 0.5;                              // PFs sit on the -Z half; the C-opening faces +Z toward the camera
+    let arcCircum    = nProtofilaments * pfTangential;              // desired arc length
+    let protoRadius  = arcCircum / arcSpan * 1.05;                  // radius from arc-length
     let pfWidth = Math.max(2, Math.floor(T / 2));   // chunkier PF cubes (was T/4)
+
+    // Vertical spacing multiplier between major sub-layers (1.0 = original).
+    // Bumped to give every sub-layer breathing room so blocks read cleanly.
+    const ySpread = 1.6;
 
     for (let layerIdx = 0; layerIdx < nLayers; layerIdx++) {
         // ===== Sub-layer 1 :  Microtubule Attention  (pre-norm + residual, multi-head spread along z) =====
@@ -185,7 +191,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
         // output projection (concat-heads �� C)
         cubes.push(m({ t: 'w', cx: C, cz: 1, cy: C, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn Out W' }));
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn Residual' }));
-        y += C * cell + margin * 2;
+        y += C * cell + margin * 2 * ySpread;
 
         // ===== Sub-layer 2 :  MT-DL (Liquid)  (pre-norm + residual) =====
         cubes.push(m({ t: 'w', cx: C, cz: 1, cy: C, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' LNN LN W' }));
@@ -199,7 +205,8 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: dProto * 2, y: lateralY, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'Lateral Coupling SA', special: BlkSpecial.Attention }));
 
         for (let protoIdx = 0; protoIdx < nProtofilaments; protoIdx++) {
-            let angle = (protoIdx / nProtofilaments) * Math.PI * 2;
+            let t = nProtofilaments === 1 ? 0.5 : protoIdx / (nProtofilaments - 1);
+            let angle = arcCenter + arcSpan * (t - 0.5);
             let protoX = protoRadius * Math.cos(angle);
             let protoZ = protoRadius * Math.sin(angle);
 
@@ -243,7 +250,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
 
         y += nTimeScales * (dProto * cell + margin / 2) + margin * 4 + dProto * cell;
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' MT-DL Residual' }));
-        y += C * cell + margin * 2;
+        y += C * cell + margin * 2 * ySpread;
 
         // ===== Sub-layer 3 (optional, gwtb_per_block=True) :  per-block GWTB =====
         let gwtbSize = Math.floor(C / 8);
@@ -257,7 +264,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
         
         cubes.push(m({ t: 'w', cx: gwtbSize, cz: 1, cy: C, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'GWTB Broadcast' }));
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' GWTB Residual' }));
-        y += C * cell + margin * 3;
+        y += C * cell + margin * 3 * ySpread;
 
         // h_prev recurrent state tag (a thin slab that lives between this layer's
         // MT-DL output and the NEXT layer's Attn LN �� it is what the code calls
