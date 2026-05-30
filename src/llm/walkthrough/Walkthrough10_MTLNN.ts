@@ -48,7 +48,7 @@ export function walkthroughMTLNN(args: IWalkthroughArgs) {
     }
 
     if (wt.phase === Phase.MTLNN_Intro) {
-        setInitialCamera(state, new Vec3(-119753, 0, -780), new Vec3(287, 22, 14.0));
+        setInitialCamera(state, new Vec3(-119753, 0, -780), new Vec3(235, 28, 16.0));
 
         commentary(wt, null, 0)`欢迎来到 _多时间尺度液态神经网络_ (Multi-Timescale Liquid Neural Network, MT-LNN) 的可视化解析。
 
@@ -80,7 +80,7 @@ MT-LNN 是一类受 _生物微管_ (Microtubules) 启发的连续时间神经架
     }
 
     if (wt.phase === Phase.MTLNN_Tokens) {
-        setInitialCamera(state, new Vec3(-119753, 0, -60), new Vec3(290, 22, 3.2));
+        setInitialCamera(state, new Vec3(-119753, 0, -60), new Vec3(235, 28, 4.0));
         let targetCubes = layout.cubes.filter(c => c.name.includes("Embed") || c.name.includes("Tokens"));
         if (targetCubes.length > 0) wt.dimHighlightBlocks = targetCubes;
 
@@ -112,7 +112,7 @@ MT-DL 是 position-free 的递推核 (仅靠 τ 与隐状态时序传递信息)�
     }
 
     if (wt.phase === Phase.MTLNN_Architecture) {
-        setInitialCamera(state, new Vec3(-119753, 0, -260), new Vec3(290, 25, 5.5));
+        setInitialCamera(state, new Vec3(-119753, 0, -260), new Vec3(235, 28, 6.5));
 
         let mtdlCubes = layout.cubes.filter(c => /^P\d+/.test(c.name) || c.name.includes("LN"));
         let mtdlRef   = c_blockRef('微管动态层 (Microtubule Dynamic Layer)', mtdlCubes);
@@ -153,7 +153,7 @@ MT-DL 是 position-free 的递推核 (仅靠 τ 与隐状态时序传递信息)�
     }
 
     if (wt.phase === Phase.MTLNN_Gates) {
-        setInitialCamera(state, new Vec3(-119753, 0, -300), new Vec3(290, 20, 3.5));
+        setInitialCamera(state, new Vec3(-119753, 0, -300), new Vec3(225, 30, 4.5));
         let gateCubes = layout.cubes.filter(c =>
             c.name.includes("Kappa") || c.name.includes("MAP") || c.name.includes("ODE"));
         if (gateCubes.length > 0) wt.dimHighlightBlocks = gateCubes;
@@ -197,7 +197,7 @@ MT-DL 是 position-free 的递推核 (仅靠 τ 与隐状态时序传递信息)�
     }
 
     if (wt.phase === Phase.MTLNN_Gwtb) {
-        setInitialCamera(state, new Vec3(-119753, 0, -460), new Vec3(290, 18, 4));
+        setInitialCamera(state, new Vec3(-119753, 0, -460), new Vec3(225, 28, 5));
         let bottleneckCubes = layout.cubes.filter(c => c.name.includes("GWTB"));
         if (bottleneckCubes.length > 0) wt.dimHighlightBlocks = bottleneckCubes;
 
@@ -236,7 +236,7 @@ MT-DL 是 position-free 的递推核 (仅靠 τ 与隐状态时序传递信息)�
     }
 
     if (wt.phase === Phase.MTLNN_Wm) {
-        setInitialCamera(state, new Vec3(-119753, 0, -560), new Vec3(290, 14, 4));
+        setInitialCamera(state, new Vec3(-119753, 0, -560), new Vec3(235, 25, 5));
         let wmCubes = layout.cubes.filter(c =>
             c.name.includes("Coherence") || c.name.includes("h_prev"));
         if (wmCubes.length === 0) wmCubes = [layout.cubes[0]]; // safety
@@ -282,7 +282,7 @@ c_t → 0  =  透明传递，残差走捷径。
     }
 
     if (wt.phase === Phase.MTLNN_Output) {
-        setInitialCamera(state, new Vec3(-119753, 0, -1080), new Vec3(290, 8, 3.5));
+        setInitialCamera(state, new Vec3(-119753, 0, -1080), new Vec3(235, 20, 4.5));
         let outCubes = layout.cubes.filter(c => c.name.includes("LM Head") || c.name.includes("Logits"));
         if (outCubes.length > 0) wt.dimHighlightBlocks = outCubes;
 

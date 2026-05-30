@@ -163,17 +163,17 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
         for (let h = 0; h < nHeads; h++) {
             const headZ = headWidth * h - (nHeads - 1) * headWidth / 2;
             // Q, K, V weights (each [C × A])
-            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX - h * (C * cell + margin) * 0.0, zM: headZ - B * cell - margin / 3, dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q W`, small: true }));
-            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX,                            zM: headZ,                              dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K W`, small: true }));
-            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX,                            zM: headZ + B * cell + margin / 3,      dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V W`, small: true }));
+            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX, zM: headZ - B * cell - margin / 3, dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q W` }));
+            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX, zM: headZ,                          dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K W` }));
+            cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX, zM: headZ + B * cell + margin / 3,  dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V W` }));
             // Q, K, V vectors (each [T × A])
-            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ - B * cell - margin / 3, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q vec`, small: true }));
-            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ,                          dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K vec`, small: true }));
-            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ + B * cell + margin / 3,  dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V vec`, small: true }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ - B * cell - margin / 3, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q vec` }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ,                          dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K vec` }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ + B * cell + margin / 3,  dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V vec` }));
             // attention matrix [T × T] per head
-            cubes.push(m({ t: 'i', cx: T, cz: B, cy: T, y: attnMatrixY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.T, name: `L${layerIdx + 1} H${h + 1} Attn`, special: BlkSpecial.Attention, small: true }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: T, y: attnMatrixY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.T, name: `L${layerIdx + 1} H${h + 1} Attn`, special: BlkSpecial.Attention }));
             // per-head value-out (output vectors [T × A])
-            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: headOutY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Out vec`, small: true }));
+            cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: headOutY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Out vec` }));
         }
         y = headOutY + A * cell + margin;
         // output projection (concat-heads → C)
