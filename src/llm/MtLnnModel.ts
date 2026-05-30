@@ -1,4 +1,4 @@
-﻿import { IBlkDef, BlkSpecial } from "./GptModelLayout";
+import { IBlkDef, BlkSpecial } from "./GptModelLayout";
 import { Vec3 } from "@/src/utils/vector";
 import { DimStyle } from "./walkthrough/WalkthroughTools";
 import { isNil } from "@/src/utils/data";
@@ -145,7 +145,13 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
     cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'Embed' }));
     y += C * cell + margin * 2;
 
-    let protoRadius = Math.max(T, C) * cell * 2.5;
+    // Microtubule cylinder geometry �� pick radius so the 13 protofilaments
+    // visually form a wall (adjacent PFs nearly touch in the tangential direction).
+    // PF lateral footprint �� B*cell (each cube is B-cells deep, which sits tangent
+    // to the cylinder), so circumference 2��R �� nPF * B*cell * fillFactor.
+    let pfTangential = B * cell + margin / 4;
+    let protoRadius = nProtofilaments * pfTangential / (2 * Math.PI) * 1.15;
+    let pfWidth = Math.max(2, Math.floor(T / 2));   // chunkier PF cubes (was T/4)
 
     for (let layerIdx = 0; layerIdx < nLayers; layerIdx++) {
         // ===== Sub-layer 1 :  Microtubule Attention  (pre-norm + residual, multi-head spread along z) =====
@@ -162,21 +168,21 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
         const headOutY   = attnMatrixY + T * cell + margin;
         for (let h = 0; h < nHeads; h++) {
             const headZ = headWidth * h - (nHeads - 1) * headWidth / 2;
-            // Q, K, V weights (each [C × A])
+            // Q, K, V weights (each [C �� A])
             cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX, zM: headZ - B * cell - margin / 3, dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q W` }));
             cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX, zM: headZ,                          dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K W` }));
             cubes.push(m({ t: 'w', cx: C, cz: 1, cy: A, y: attnQkvY, xR: leftX, zM: headZ + B * cell + margin / 3,  dimX: DimStyle.C, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V W` }));
-            // Q, K, V vectors (each [T × A])
+            // Q, K, V vectors (each [T �� A])
             cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ - B * cell - margin / 3, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Q vec` }));
             cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ,                          dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} K vec` }));
             cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: attnQkvY, xM: 0, zM: headZ + B * cell + margin / 3,  dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} V vec` }));
-            // attention matrix [T × T] per head
+            // attention matrix [T �� T] per head
             cubes.push(m({ t: 'i', cx: T, cz: B, cy: T, y: attnMatrixY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.T, name: `L${layerIdx + 1} H${h + 1} Attn`, special: BlkSpecial.Attention }));
-            // per-head value-out (output vectors [T × A])
+            // per-head value-out (output vectors [T �� A])
             cubes.push(m({ t: 'i', cx: T, cz: B, cy: A, y: headOutY, xM: 0, zM: headZ, dimX: DimStyle.T, dimY: DimStyle.C, name: `L${layerIdx + 1} H${h + 1} Out vec` }));
         }
         y = headOutY + A * cell + margin;
-        // output projection (concat-heads → C)
+        // output projection (concat-heads �� C)
         cubes.push(m({ t: 'w', cx: C, cz: 1, cy: C, y: y, xR: leftX, zM: 0, dimX: DimStyle.C, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn Out W' }));
         cubes.push(m({ t: 'i', cx: T, cz: B, cy: C, y: y, xM: 0, zM: 0, dimX: DimStyle.T, dimY: DimStyle.C, name: 'L' + (layerIdx + 1) + ' Attn Residual' }));
         y += C * cell + margin * 2;
@@ -199,7 +205,7 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
 
             cubes.push(m({
                 t: 'w', cx: C, cz: 1, cy: dProto * nTimeScales, y: protoStartY,
-                xR: protoX - (Math.max(1, Math.floor(T / 4)) * cell) / 2 - margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_in'
+                xR: protoX - (pfWidth * cell) / 2 - margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_in'
             }));
 
             let endTimeScaleY = protoStartY;
@@ -208,30 +214,30 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
                 endTimeScaleY = scaleY + dProto * cell;
                 
                 cubes.push(m({
-                    t: 'i', cx: Math.max(1, Math.floor(T / 4)), cz: B, cy: dProto, y: scaleY,
+                    t: 'i', cx: pfWidth, cz: B, cy: dProto, y: scaleY,
                     xM: protoX, zM: protoZ, dimX: DimStyle.T, dimY: DimStyle.C,
                     name: 'P' + (protoIdx + 1) + ' tau' + scaleIdx
                 }));
                 
                 cubes.push(m({
-                    t: 'w', cx: Math.max(1, Math.floor(T / 4)), cz: 1, cy: dProto, y: scaleY,
+                    t: 'w', cx: pfWidth, cz: 1, cy: dProto, y: scaleY,
                     xM: protoX, zM: protoZ - B * cell - margin / 2, dimX: DimStyle.C, dimY: DimStyle.C, name: 'ODE W'
                 }));
             }
             
             let combY = endTimeScaleY + margin;
             cubes.push(m({
-                 t: 'i', cx: Math.max(1, Math.floor(T / 4)), cz: B, cy: dProto, y: combY,
+                 t: 'i', cx: pfWidth, cz: B, cy: dProto, y: combY,
                  xM: protoX, zM: protoZ, dimX: DimStyle.T, dimY: DimStyle.C, name: 'Kappa Gate', special: BlkSpecial.Attention
             }));
             cubes.push(m({
                  t: 'w', cx: dProto, cz: 1, cy: dProto, y: combY,
-                 xL: protoX + (Math.max(1, Math.floor(T / 4)) * cell) / 2 + margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'MAP Gate (MLP)'
+                 xL: protoX + (pfWidth * cell) / 2 + margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'MAP Gate (MLP)'
             }));
 
             cubes.push(m({
                 t: 'w', cx: dProto * nTimeScales, cz: 1, cy: C, y: protoStartY,
-                xL: protoX + (Math.max(1, Math.floor(T / 4)) * cell) / 2 + margin * 2 + dProto * cell, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_out'
+                xL: protoX + (pfWidth * cell) / 2 + margin * 2 + dProto * cell, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_out'
             }));
         }
 
@@ -254,17 +260,17 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
         y += C * cell + margin * 3;
 
         // h_prev recurrent state tag (a thin slab that lives between this layer's
-        // MT-DL output and the NEXT layer's Attn LN — it is what the code calls
+        // MT-DL output and the NEXT layer's Attn LN �� it is what the code calls
         // `h_prev` and what gets passed into both Attn and MT-DL sub-layers).
         cubes.push(m({
-            t: 'i', cx: Math.max(1, Math.floor(T / 4)), cz: B, cy: Math.floor(C / 4),
+            t: 'i', cx: pfWidth, cz: B, cy: Math.floor(C / 4),
             y: y, xR: leftX, zM: 0,
             dimX: DimStyle.T, dimY: DimStyle.C,
             name: 'L' + (layerIdx + 1) + ' h_prev (recurrent)',
         }));
     }
 
-    // ===== Global GlobalCoherenceLayer (Orch-OR) — ONCE, after all blocks =====
+    // ===== Global GlobalCoherenceLayer (Orch-OR) �� ONCE, after all blocks =====
     let gwtbGlobal = Math.floor(C / 8);
     cubes.push(m({
         t: 'w', cx: gwtbGlobal, cz: 1, cy: Math.floor(C / 2), y: y, xR: leftX, zM: 0,
