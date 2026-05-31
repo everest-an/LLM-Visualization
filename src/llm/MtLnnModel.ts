@@ -211,8 +211,11 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
             let protoX = protoRadius * Math.cos(angle);
             let protoZ = protoRadius * Math.sin(angle);
 
+            // Per-PF input adapter: shrunk from full C��(dProto��nTimeScales) slab
+            // down to a small dProto*2 ��� dProto*2 cube so that 13 of them no longer
+            // fuse into one giant occluding wall in front of the arc.
             cubes.push(m({
-                t: 'w', cx: C, cz: 1, cy: dProto * nTimeScales, y: protoStartY,
+                t: 'w', cx: dProto * 2, cz: 1, cy: dProto * 2, y: protoStartY,
                 xR: protoX - (pfWidth * cell) / 2 - margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_in'
             }));
 
@@ -243,8 +246,9 @@ function genMTLNNLayout(shape: IMTLNNShape, offset: Vec3): IMTLNNLayout {
                  xL: protoX + (pfWidth * cell) / 2 + margin / 2, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'MAP Gate (MLP)'
             }));
 
+            // Per-PF output adapter: shrunk for the same reason as W_in.
             cubes.push(m({
-                t: 'w', cx: dProto * nTimeScales, cz: 1, cy: C, y: protoStartY,
+                t: 'w', cx: dProto * 2, cz: 1, cy: dProto * 2, y: protoStartY,
                 xL: protoX + (pfWidth * cell) / 2 + margin * 2 + dProto * cell, zM: protoZ, dimX: DimStyle.C, dimY: DimStyle.C, name: 'P' + (protoIdx + 1) + ' W_out'
             }));
         }
