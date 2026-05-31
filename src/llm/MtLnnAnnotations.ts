@@ -160,20 +160,22 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
             const meanY = ring.reduce((s, c) => s + c.y, 0) / ring.length;
             const ringLabel = `Microtubule (Block ${blockIdx + 1})  ·  ${nProto} protofilaments × ${nTau} τ-scales  ·  closed-form LTC`;
             const mtx = new Mat4f(); mtx[14] = 0 + offset.z;
-            const txtSize = 14;
+            const txtSize = 7;
             const tw = measureTextWidth(render.modelFontBuf, ringLabel, txtSize);
             drawTextWithBg(render, ringLabel, colMtdl,
-                -tw / 2, meanY - txtSize - 6 + offset.y, txtSize, mtx,
+                -tw / 2, meanY - txtSize - 14 + offset.y, txtSize, mtx,
             );
 
             // Per-protofilament index labels at every PF position (around the ring)
             ring.forEach((pf, pi) => {
                 const lbl = `P${pi + 1}`;
                 const lblMtx = new Mat4f(); lblMtx[14] = pf.z + pf.dz / 2 + offset.z;
+                const lblFs = 3.5;
+                const lblW  = measureTextWidth(render.modelFontBuf, lbl, lblFs);
                 drawTextWithBg(render, lbl, colMtdl.mul(0.8),
-                    pf.x + pf.dx / 2 - 8 + offset.x,
-                    pf.y - 12 + offset.y,
-                    9, lblMtx,
+                    pf.x + pf.dx / 2 - lblW / 2 + offset.x,
+                    pf.y - lblFs - 1.5 + offset.y,
+                    lblFs, lblMtx,
                 );
             });
         });
@@ -196,10 +198,11 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
         tauGroup.forEach((tc, i) => {
             if (i >= tauLabels.length) return;
             const mtx = new Mat4f(); mtx[14] = tc.z + tc.dz / 2 + offset.z;
+            const tauFs = 4;
             drawTextWithBg(render, tauLabels[i], colMtdl.mul(0.9),
-                tc.x + tc.dx + 4 + offset.x,
-                tc.y + tc.dy / 2 - 5 + offset.y,
-                10, mtx,
+                tc.x + tc.dx + 2 + offset.x,
+                tc.y + tc.dy / 2 - tauFs / 2 + offset.y,
+                tauFs, mtx,
             );
         });
     }
@@ -209,9 +212,10 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
         const firstPF = protoCubes.reduce((m, c) => (c.y < m.y ? c : m), protoCubes[0]);
         const mtx = new Mat4f(); mtx[14] = firstPF.z + offset.z;
         const formula = 'h⁽ᵖ,ˢ⁾_t = α·h⁽ᵖ,ˢ⁾_(t-1) + (1-α)·σ(W_in·x+b),   α = exp(-Δt/τ)';
-        const fw = measureTextWidth(render.modelFontBuf, formula, 11);
+        const formulaFs = 5;
+        const fw = measureTextWidth(render.modelFontBuf, formula, formulaFs);
         drawTextWithBg(render, formula, colMtdl.mul(0.85),
-            -fw / 2, firstPF.y - 32 + offset.y, 11, mtx,
+            -fw / 2, firstPF.y - formulaFs - 22 + offset.y, formulaFs, mtx,
         );
     }
 
@@ -221,9 +225,23 @@ export function drawMTLNNAnnotations(render: IRenderState, layout: IMTLNNLayout,
     };
     tag(tokens,                                 `T tokens`,                                   colIO,   10);
     tag(embed,                                  `x  [T × d_model=${dModel}]`,                colIO,   10);
+    tag(find('Token Embed'),                    `E_tok  [V × C]`,                             colIO,    7);
+    tag(find('Pos Embed'),                      `E_pos  [T × C]`,                             colIO,    7);
     tag(find('Global Coherence (Orch-OR)'),     `coherence · Φ̂ collapse`,                    colCoh,  10);
     tag(find('Final LN'),                       `LayerNorm`,                                  colNorm, 9);
     tag(find('Logits'),                         `logits  [T × V]`,                            colIO,   10);
+
+    // ---- Per-block inner-component tags (one per block, picked via y-grouping) ----
+    // Lateral coupling cubes share the same name across blocks; pick all and tag each.
+    for (const lc of cubes.filter(c => c.name === 'Lateral Coupling SA')) {
+        labelRight(render, `Lateral Coupling · cross-PF τ-mixing`, lc, colMtdl.mul(0.85), 5, offset);
+    }
+    for (const gc of cubes.filter(c => c.name === 'GWTB Compress')) {
+        labelRight(render, `Compress  d → d/8`, gc, colGwtb.mul(0.9), 6, offset);
+    }
+    for (const gb of cubes.filter(c => c.name === 'GWTB Broadcast')) {
+        labelRight(render, `Broadcast  d/8 → d`, gb, colGwtb.mul(0.9), 6, offset);
+    }
 
     // ---- Straight spine arrows (data flow) ----
     const spine: (IBlkDef | undefined)[] = [];
@@ -314,7 +332,7 @@ export function drawMTLNNModelCard(state: IProgramState, layout: IMTLNNLayout, o
     const { render } = state;
     const { camPos } = cameraToMatrixView(state.camera);
     const dist = camPos.dist(new Vec3(0, 0, -30).add(offset));
-    const scale = clamp(dist / 500.0, 1.0, 800.0);
+    const scale = clamp(dist / 1500.0, 0.30, 800.0);
 
     const shape: any = (layout as any).shape ?? {};
     const weightCount: number = (layout as any).weightCount ?? 0;
